@@ -25,7 +25,3 @@ function redirectToLogin() {
 function redirectToRegister() {
     window.location.href = '/register';
 }
-
-function redirectToWaste() {
-    window.location.href = '/waste-tracker';
-}

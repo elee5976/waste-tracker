@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>User Login</title>
+</head>
+
+<body>
+    <h1>User Login</h1>
+
+    <!-- Display success flash message if available -->
+    <% if (success && success.length > 0) { %>
+        <div class="alert alert-success">
+            <%= success[0] %>
+        </div>
+    <% } %>
+
+    <!-- Display error flash message if available -->
+    <% if (error && error.length > 0) { %>
+        <div class="alert alert-danger">
+            <%= error[0] %>
+        </div>
+    <% } %>
+
+    <form action="/login" method="POST">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required><br>
+
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required><br>
+
+        <button type="submit">Login</button>
+    </form>
+</body>
+
+</html>

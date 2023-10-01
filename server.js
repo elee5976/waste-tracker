@@ -7,6 +7,15 @@ const flash = require('express-flash');
 
 const port = process.env.PORT || 3000;
 
+const sqlite3 = require('sqlite3').verbose();
+const db = new sqlite3.Database('users.db');
+
+// Set EJS as the view engine
+app.set('view engine', 'ejs');
+
+// Set the views directory
+app.set('views', path.join(__dirname, 'templates'));
+
 app.use(express.static(path.join(__dirname, 'templates')));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(
@@ -18,9 +27,27 @@ app.use(
 );
 app.use(flash());
 
+db.serialize(() => {
+    // Create the "users" table if it doesn't exist
+    db.run(`CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY,
+        username TEXT NOT NULL,
+        password TEXT NOT NULL,
+        email TEXT
+    )`);
+    // Create the "waste_data" table if it doesn't exist
+    db.run(`CREATE TABLE IF NOT EXISTS waste_data (
+        id INTEGER PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        waste_type TEXT NOT NULL,
+        weight REAL NOT NULL,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+});
+
 // Define a route for the login page
 app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'templates', 'login.html'));
+    res.render('login', { success: req.flash('success'), error: req.flash('error') });
 });
 
 // Define a route for handling login form submission
@@ -29,23 +56,29 @@ app.post('/login', (req, res) => {
     const username = req.body.username;
     const password = req.body.password;
 
-    // Add your authentication logic here
-    // Check the username and password against your database
-
-    if (authenticated) {
-        // Replace with your authentication logic
-        req.session.user_id = user_id; // Store user ID in the session
-        req.flash('success', 'Login successful.');
-        res.redirect('/profile');
-    } else {
-        req.flash('error', 'Invalid username or password.');
-        res.redirect('/login');
-    }
+    // Check the username and password against the database
+    db.get('SELECT * FROM users WHERE username = ? AND password = ?', [username, password], (err, row) => {
+        if (err) {
+            // Handle database error
+            console.error(err);
+            req.flash('error', 'An error occurred during login.');
+            res.redirect('/login');
+        } else if (row) {
+            // Authentication successful
+            req.session.user_id = row.id; // Store user ID in the session
+            req.flash('success', 'Login successful.');
+            res.redirect('/waste-tracker');
+        } else {
+            // Authentication failed
+            req.flash('error', 'Invalid username or password.');
+            res.redirect('/login');
+        }
+    });
 });
 
 // Define a route for the registration page
 app.get('/register', (req, res) => {
-    res.sendFile(path.join(__dirname, 'templates', 'register.html'));
+    res.render('register', { success: req.flash('success'), error: req.flash('error') });
 });
 
 // Define a route for handling registration form submission
@@ -55,15 +88,108 @@ app.post('/register', (req, res) => {
     const email = req.body.email;
     const password = req.body.password;
 
-    // Add your registration logic here
-    // Create a new user record in your database
+    // Check if the username already exists in the database
+    db.get('SELECT * FROM users WHERE username = ?', [username], (err, row) => {
+        if (err) {
+            // Handle database error
+            console.error(err);
+            req.flash('error', 'An error occurred during registration.');
+            res.redirect('/register');
+        } else if (row) {
+            // Username already exists
+            req.flash('error', 'Username already exists. Please choose another username.');
+            res.redirect('/register');
+        } else {
+            // Insert the new user into the database
+            db.run('INSERT INTO users (username, email, password) VALUES (?, ?, ?)', [username, email, password], (err) => {
+                if (err) {
+                    // Handle database error
+                    console.error(err);
+                    req.flash('error', 'An error occurred during registration.');
+                    res.redirect('/register');
+                } else {
+                    req.flash('success', 'Registration successful. You can now login.');
+                    res.redirect('/login');
+                }
+            });
+        }
+    });
+});
 
-    req.flash('success', 'Registration successful. You can now login.');
-    res.redirect('/login');
+app.get('/logout', (req, res) => {
+    // Clear the user session to log them out
+    req.session.destroy((err) => {
+        if (err) {
+            console.error('Error destroying session:', err);
+        }
+        // Redirect the user to the login page after logging out
+        res.redirect('/login');
+    });
 });
 
 app.get('/waste-tracker', (req, res) => {
-    res.sendFile(path.join(__dirname, 'templates', 'waste.html'));
+    // Check if the user is logged in
+    if (!req.session.user_id) {
+        req.flash('error', 'Please log in to view waste data.');
+        return res.redirect('/login');
+    }
+
+    // Retrieve the user's ID from the session
+    const userId = req.session.user_id;
+
+    // Query the waste data associated with the user
+    const selectWasteDataQuery = `
+        SELECT * FROM waste_data
+        WHERE user_id = ?
+        ORDER BY timestamp DESC
+    `;
+
+    db.all(selectWasteDataQuery, [userId], (err, rows) => {
+        if (err) {
+            req.flash('error', 'Error retrieving waste data.');
+            return res.redirect('/waste-tracker.html');
+        }
+
+        // Pass the retrieved waste data to your template
+        res.render('waste-tracker.ejs', { wasteData: rows });
+    });
+});
+
+app.post('/waste-tracker', (req, res) => {
+    if (!req.session.user_id) {
+        req.flash('error', 'Please log in to submit waste data.');
+        return res.redirect('/login');
+    }
+
+    // Retrieve the user's ID from the session
+    const userId = req.session.user_id;
+
+    // Extract and validate waste data from the request
+    const wasteType = req.body.wasteType;
+    const weight = parseFloat(req.body.weight);
+
+    // Check if the weight is a valid number and greater than 0
+    if (isNaN(weight) || weight <= 0) {
+        req.flash('error', 'Invalid weight value.');
+        return res.redirect('/waste-tracker'); // Redirect back to the waste submission page
+    }
+
+    // Insert waste data into the database
+    const insertWasteDataQuery = `
+        INSERT INTO waste_data (user_id, waste_type, weight)
+        VALUES (?, ?, ?)
+    `;
+
+    const wasteDataValues = [userId, wasteType, weight];
+
+    db.run(insertWasteDataQuery, wasteDataValues, function (err) {
+        if (err) {
+            req.flash('error', 'Error storing waste data.');
+        } else {
+            req.flash('success', 'Waste data recorded successfully.');
+        }
+        res.redirect('/waste-tracker'); // Redirect back to the waste submission page
+    });
 });
 
 // Start the server
