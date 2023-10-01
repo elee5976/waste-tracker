@@ -10,6 +10,5 @@ Web app aimed at helping users develop better waste reduction habits and underst
 - Tips and Reminders
 - Location Services
 ## How to Run:
-- Run npm install if you have not already
 - Run node server.js
 - Should be on localhost:3000
