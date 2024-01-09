@@ -17,11 +17,3 @@ app.use(
     })
 );
 app.use(flash());
-
-function redirectToLogin() {
-    window.location.href = '/login';
-}
-
-function redirectToRegister() {
-    window.location.href = '/register';
-}

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Settings</title>
+</head>
+
+<h1>Settings</h1>
+
+<body>
+
+
+    <!-- Display success flash message if available -->
+    <% if (success && success.length> 0) { %>
+        <div class="alert alert-success">
+            <%= success[0] %>
+        </div>
+        <% } %>
+
+            <!-- Display error flash message if available -->
+            <% if (error && error.length> 0) { %>
+                <div class="alert alert-danger">
+                    <%= error[0] %>
+                </div>
+                <% } %>
+
+</body>
+
+</html>

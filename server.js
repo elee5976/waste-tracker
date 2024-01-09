@@ -1,3 +1,4 @@
+//change
 const express = require('express');
 const app = express();
 const path = require('path');
@@ -190,6 +191,31 @@ app.post('/waste-tracker', (req, res) => {
         }
         res.redirect('/waste-tracker'); // Redirect back to the waste submission page
     });
+});
+
+// Define a route for the recycling guide page
+app.get('/recycling-guide', (req, res) => {
+    res.render('recycling-guide', { success: req.flash('success'), error: req.flash('error') });
+});
+
+// Define a route for the progress timeline page
+app.get('/progress-timeline', (req, res) => {
+    res.render('progress-timeline', { success: req.flash('success'), error: req.flash('error') });
+});
+
+// Define a route for the about us page
+app.get('/about-us', (req, res) => {
+    res.render('about-us', { success: req.flash('success'), error: req.flash('error') });
+});
+
+// Define a route for the settings page
+app.get('/settings', (req, res) => {
+    res.render('settings', { success: req.flash('success'), error: req.flash('error') });
+});
+
+// Define a route for the binny page
+app.get('/binny', (req, res) => {
+    res.render('binny', { success: req.flash('success'), error: req.flash('error') });
 });
 
 // Start the server
